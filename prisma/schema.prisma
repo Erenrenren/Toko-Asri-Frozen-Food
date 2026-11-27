@@ -1,0 +1,87 @@
+// Prisma schema - Toko Asri Frozen Food (Tahap 1)
+// Catatan: SQLite tidak mendukung enum native, sehingga kolom kategori/peran
+// memakai String yang divalidasi di layer Zod (lib/validators) dan TypeScript.
+// Saat migrasi ke PostgreSQL, enum dapat ditambahkan tanpa mengubah kontrak API.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  phone        String?
+  role         String   @default("customer") // admin | staff | customer
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  transactions FinancialTransaction[] @relation("CreatedTransactions")
+
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+model Product {
+  id                 String   @id @default(cuid())
+  sku                String   @unique
+  name               String
+  category           String // nugget | sosis | dimsum | ikan | daging | kentang | lainnya
+  description        String?
+  storageTemperature Float? // derajat Celsius
+  shelfLifeDays      Int?
+  costPrice          Int // HPP per satuan, Rupiah
+  sellPrice          Int // harga jual per satuan, Rupiah
+  unit               String   @default("pack") // pcs | pack | karton | kg
+  packSize           Int? // jumlah pcs per pack/karton
+  stockQty           Int      @default(0)
+  minStockQty        Int      @default(0)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  transactions FinancialTransaction[]
+
+  @@index([category])
+  @@index([isActive])
+  @@index([stockQty])
+  @@map("products")
+}
+
+model FinancialTransaction {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  type        String // income | expense
+  category    String // sales | purchase | operational | other
+  amount      Int // nominal transaksi, Rupiah
+  quantity    Int?
+  unitPrice   Int?
+  unitCost    Int? // HPP saat transaksi terjadi (snapshot)
+  description String
+  occurredAt  DateTime @default(now())
+  source      String   @default("manual") // manual | pos | scm | payment
+  status      String   @default("posted") // posted | void
+  externalRef String?
+  productId   String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdBy User     @relation("CreatedTransactions", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([type, occurredAt])
+  @@index([category, occurredAt])
+  @@index([status])
+  @@index([productId])
+  @@index([createdById])
+  @@map("financial_transactions")
+}
