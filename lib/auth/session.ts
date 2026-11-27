@@ -19,11 +19,25 @@ export interface SessionUser {
   createdAt: Date;
 }
 
+function isLocalAppUrl(value: string | undefined): boolean {
+  if (!value) return false;
+  try {
+    const hostname = new URL(value).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
 export function getSessionCookieOptions() {
+  const isProduction = process.env.NODE_ENV === "production";
+  const isLocal = isLocalAppUrl(process.env.NEXT_PUBLIC_APP_URL);
+
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    // Tetap Secure di production, tetapi izinkan `npm start` lokal via http.
+    secure: isProduction && !isLocal,
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
   };
