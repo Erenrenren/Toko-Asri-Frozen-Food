@@ -1,0 +1,15 @@
+import type { SelectHTMLAttributes } from "react";
+
+import { cn } from "@/lib/format";
+
+export function Select({
+  className,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select className={cn("input-base", className)} {...props}>
+      {children}
+    </select>
+  );
+}
