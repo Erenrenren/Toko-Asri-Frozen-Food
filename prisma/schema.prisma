@@ -2,6 +2,8 @@
 // Tahap 1: User, Product, FinancialTransaction.
 // Tahap 2 (aditif, backward-compatible): Supplier, PurchaseOrder, GoodsReceipt,
 // ProductBatch, StockMovement. Kolom Tahap 1 tidak diubah/dihapus.
+// Tahap 3 (aditif, backward-compatible): CustomerProfile, CustomerAddress, Order,
+// OrderItem, OrderStatusHistory, CustomerInteraction, FinancialTransaction.customerId.
 //
 // Catatan: SQLite tidak mendukung enum native, sehingga kolom kategori/peran/status
 // memakai String yang divalidasi di layer Zod (lib/validators) dan TypeScript.
@@ -31,6 +33,8 @@ model User {
   purchaseOrders PurchaseOrder[]        @relation("CreatedPurchaseOrders")
   goodsReceipts  GoodsReceipt[]         @relation("ReceivedGoods")
   stockMovements StockMovement[]        @relation("CreatedStockMovements")
+
+  customerProfile CustomerProfile?
 
   @@index([role])
   @@index([isActive])
@@ -284,4 +288,44 @@ model StockMovement {
   @@index([reason])
   @@index([occurredAt])
   @@map("stock_movements")
+}
+
+// ============================================================
+// TAHAP 3 — CRM & PEMESANAN
+// ============================================================
+
+model CustomerProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique // User dengan role customer
+  customerType    String   @default("rumah_tangga") // rumah_tangga | reseller | rutin
+  preferenceNotes String? // preferensi produk, jam kirim, pantangan, dll.
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addresses CustomerAddress[]
+
+  @@index([customerType])
+  @@map("customer_profiles")
+}
+
+model CustomerAddress {
+  id                String   @id @default(cuid())
+  customerProfileId String
+  label             String // mis. Rumah, Kios, Kantor
+  recipientName     String
+  phone             String
+  addressLine       String
+  district          String?
+  city              String
+  postalCode        String?
+  notes             String? // patokan / instruksi kurir
+  isPrimary         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  customerProfile CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([customerProfileId, isPrimary])
+  @@map("customer_addresses")
 }
