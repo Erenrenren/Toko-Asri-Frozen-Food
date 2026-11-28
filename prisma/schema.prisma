@@ -35,6 +35,9 @@ model User {
   stockMovements StockMovement[]        @relation("CreatedStockMovements")
 
   customerProfile CustomerProfile?
+  customerOrders  Order[]              @relation("CustomerOrders")
+  createdOrders   Order[]              @relation("CreatedOrders")
+  orderStatusLogs OrderStatusHistory[] @relation("OrderStatusChanges")
 
   @@index([role])
   @@index([isActive])
@@ -65,6 +68,7 @@ model Product {
   goodsReceiptItems  GoodsReceiptItem[]
   batches            ProductBatch[]
   stockMovements     StockMovement[]
+  orderItems         OrderItem[]
 
   @@index([category])
   @@index([isActive])
@@ -325,7 +329,79 @@ model CustomerAddress {
   updatedAt         DateTime @updatedAt
 
   customerProfile CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+  orders          Order[]
 
   @@index([customerProfileId, isPrimary])
   @@map("customer_addresses")
+}
+
+model Order {
+  id              String    @id @default(cuid())
+  number          String    @unique
+  customerId      String // User dengan role customer
+  addressId       String? // alamat tersimpan (opsional, bisa terhapus)
+  status          String    @default("pending_payment") // pending_payment | paid | processing | completed | cancelled
+  subtotal        Int       @default(0)
+  shippingCost    Int       @default(0)
+  discountAmount  Int       @default(0)
+  totalAmount     Int       @default(0)
+  // Snapshot tujuan kirim agar riwayat pesanan tidak berubah saat alamat diedit.
+  shippingName    String?
+  shippingPhone   String?
+  shippingAddress String?
+  notes           String?
+  cancelReason    String?
+  placedAt        DateTime  @default(now())
+  paidAt          DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  createdById     String? // staff yang membuat pesanan; null jika dibuat customer sendiri
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  customer  User                 @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: Restrict)
+  address   CustomerAddress?     @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  createdBy User?                @relation("CreatedOrders", fields: [createdById], references: [id], onDelete: SetNull)
+  items     OrderItem[]
+  history   OrderStatusHistory[]
+
+  @@index([customerId, placedAt])
+  @@index([status])
+  @@index([placedAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String @id @default(cuid())
+  orderId     String
+  productId   String
+  productSku  String // snapshot
+  productName String // snapshot
+  quantity    Int
+  unitPrice   Int // harga jual saat pesan, Rupiah
+  unitCost    Int    @default(0) // HPP saat pesan (snapshot)
+  subtotal    Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, productId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String   @id @default(cuid())
+  orderId     String
+  fromStatus  String? // null untuk status awal
+  toStatus    String
+  note        String?
+  changedById String? // null jika perubahan oleh sistem/customer
+  createdAt   DateTime @default(now())
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation("OrderStatusChanges", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
 }
