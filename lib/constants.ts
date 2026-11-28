@@ -1,5 +1,9 @@
 import type {
   BatchStatus,
+  CustomerType,
+  InteractionStatus,
+  InteractionType,
+  OrderStatus,
   ProductCategory,
   ProductUnit,
   PurchaseOrderStatus,
@@ -14,6 +18,10 @@ import type {
 
 export {
   BATCH_STATUSES,
+  CUSTOMER_TYPES,
+  INTERACTION_STATUSES,
+  INTERACTION_TYPES,
+  ORDER_STATUSES,
   PRODUCT_CATEGORIES,
   PRODUCT_UNITS,
   PURCHASE_ORDER_STATUSES,
@@ -137,6 +145,50 @@ export const SCM_NAV_ITEMS = [
   { label: "Batch & Expiry", href: "/dashboard/scm/batches", exact: false },
   { label: "Mutasi Stok", href: "/dashboard/scm/stock-movements", exact: false },
 ] as const;
+
+export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
+  rumah_tangga: "Rumah tangga",
+  reseller: "Reseller",
+  rutin: "Pelanggan rutin",
+};
+
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  pending_payment: "Menunggu pembayaran",
+  paid: "Sudah dibayar",
+  processing: "Diproses",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
+};
+
+/** Transisi status pesanan yang diizinkan. Status akhir tidak punya transisi lanjutan. */
+export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  pending_payment: ["paid", "cancelled"],
+  paid: ["processing", "cancelled"],
+  processing: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
+/** Status yang dihitung sebagai belanja sah (dipakai total belanja & segmentasi). */
+export const ORDER_REVENUE_STATUSES: readonly OrderStatus[] = [
+  "paid",
+  "processing",
+  "completed",
+];
+
+export const INTERACTION_TYPE_LABELS: Record<InteractionType, string> = {
+  complaint: "Keluhan",
+  follow_up: "Tindak lanjut",
+  inquiry: "Pertanyaan",
+  feedback: "Masukan",
+  other: "Lainnya",
+};
+
+export const INTERACTION_STATUS_LABELS: Record<InteractionStatus, string> = {
+  open: "Terbuka",
+  in_progress: "Sedang ditangani",
+  resolved: "Selesai",
+};
 
 export const NAV_ITEMS = [
   {

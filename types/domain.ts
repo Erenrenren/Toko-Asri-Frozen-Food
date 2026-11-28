@@ -363,3 +363,129 @@ export interface DashboardSummary {
     unit: ProductUnit;
   }>;
 }
+
+// ============================================================
+// CRM & Pemesanan (Tahap 3)
+// ============================================================
+
+export const CUSTOMER_TYPES = ["rumah_tangga", "reseller", "rutin"] as const;
+export type CustomerType = (typeof CUSTOMER_TYPES)[number];
+
+export const ORDER_STATUSES = [
+  "pending_payment",
+  "paid",
+  "processing",
+  "completed",
+  "cancelled",
+] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+export const INTERACTION_TYPES = [
+  "complaint",
+  "follow_up",
+  "inquiry",
+  "feedback",
+  "other",
+] as const;
+export type InteractionType = (typeof INTERACTION_TYPES)[number];
+
+export const INTERACTION_STATUSES = ["open", "in_progress", "resolved"] as const;
+export type InteractionStatus = (typeof INTERACTION_STATUSES)[number];
+
+export interface CustomerAddressDTO {
+  id: string;
+  label: string;
+  recipientName: string;
+  phone: string;
+  addressLine: string;
+  district: string | null;
+  city: string;
+  postalCode: string | null;
+  notes: string | null;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerStatsDTO {
+  totalOrders: number;
+  completedOrders: number;
+  totalSpent: number; // Rupiah, dari pesanan paid/processing/completed
+  lastOrderAt: string | null;
+}
+
+export interface CustomerDTO {
+  id: string; // User.id
+  profileId: string | null; // null bila profil CRM belum dibuat
+  name: string;
+  email: string;
+  phone: string | null;
+  isActive: boolean;
+  customerType: CustomerType;
+  preferenceNotes: string | null;
+  primaryAddress: CustomerAddressDTO | null;
+  addresses: CustomerAddressDTO[];
+  stats: CustomerStatsDTO;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderItemDTO {
+  id: string;
+  productId: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  unitCost: number;
+  subtotal: number;
+}
+
+export interface OrderStatusHistoryDTO {
+  id: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  note: string | null;
+  changedBy: Pick<UserDTO, "id" | "name"> | null;
+  createdAt: string;
+}
+
+export interface OrderDTO {
+  id: string;
+  number: string;
+  status: OrderStatus;
+  subtotal: number;
+  shippingCost: number;
+  discountAmount: number;
+  totalAmount: number;
+  shippingName: string | null;
+  shippingPhone: string | null;
+  shippingAddress: string | null;
+  notes: string | null;
+  cancelReason: string | null;
+  placedAt: string;
+  paidAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  customer: Pick<UserDTO, "id" | "name"> & { email: string; phone: string | null };
+  items: OrderItemDTO[];
+  history: OrderStatusHistoryDTO[];
+  createdBy: Pick<UserDTO, "id" | "name"> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerInteractionDTO {
+  id: string;
+  type: InteractionType;
+  status: InteractionStatus;
+  subject: string;
+  notes: string | null;
+  followUpAt: string | null;
+  resolvedAt: string | null;
+  customer: Pick<UserDTO, "id" | "name">;
+  order: { id: string; number: string } | null;
+  staff: Pick<UserDTO, "id" | "name">;
+  createdAt: string;
+  updatedAt: string;
+}
