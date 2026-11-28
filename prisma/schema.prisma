@@ -39,6 +39,10 @@ model User {
   createdOrders   Order[]              @relation("CreatedOrders")
   orderStatusLogs OrderStatusHistory[] @relation("OrderStatusChanges")
 
+  customerTransactions FinancialTransaction[] @relation("CustomerTransactions")
+  customerInteractions CustomerInteraction[]  @relation("CustomerInteractions")
+  staffInteractions    CustomerInteraction[]  @relation("StaffInteractions")
+
   @@index([role])
   @@index([isActive])
   @@map("users")
@@ -91,17 +95,20 @@ model FinancialTransaction {
   status      String   @default("posted") // posted | void
   externalRef String?
   productId   String?
+  customerId  String? // Tahap 3: opsional agar transaksi lama tetap valid
   createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  customer  User?    @relation("CustomerTransactions", fields: [customerId], references: [id], onDelete: SetNull)
   createdBy User     @relation("CreatedTransactions", fields: [createdById], references: [id], onDelete: Restrict)
 
   @@index([type, occurredAt])
   @@index([category, occurredAt])
   @@index([status])
   @@index([productId])
+  @@index([customerId])
   @@index([createdById])
   @@map("financial_transactions")
 }
@@ -359,11 +366,12 @@ model Order {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  customer  User                 @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: Restrict)
-  address   CustomerAddress?     @relation(fields: [addressId], references: [id], onDelete: SetNull)
-  createdBy User?                @relation("CreatedOrders", fields: [createdById], references: [id], onDelete: SetNull)
-  items     OrderItem[]
-  history   OrderStatusHistory[]
+  customer     User                  @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: Restrict)
+  address      CustomerAddress?      @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  createdBy    User?                 @relation("CreatedOrders", fields: [createdById], references: [id], onDelete: SetNull)
+  items        OrderItem[]
+  history      OrderStatusHistory[]
+  interactions CustomerInteraction[]
 
   @@index([customerId, placedAt])
   @@index([status])
@@ -404,4 +412,29 @@ model OrderStatusHistory {
 
   @@index([orderId, createdAt])
   @@map("order_status_history")
+}
+
+model CustomerInteraction {
+  id         String    @id @default(cuid())
+  customerId String // User dengan role customer
+  orderId    String? // pesanan terkait (opsional)
+  staffId    String // staff/admin pencatat
+  type       String // complaint | follow_up | inquiry | feedback | other
+  status     String    @default("open") // open | in_progress | resolved
+  subject    String
+  notes      String?
+  followUpAt DateTime? // jadwal tindak lanjut
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  customer User   @relation("CustomerInteractions", fields: [customerId], references: [id], onDelete: Cascade)
+  staff    User   @relation("StaffInteractions", fields: [staffId], references: [id], onDelete: Restrict)
+  order    Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([customerId, createdAt])
+  @@index([status, followUpAt])
+  @@index([type])
+  @@index([staffId])
+  @@map("customer_interactions")
 }
