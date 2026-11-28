@@ -92,6 +92,230 @@ export interface TransactionDTO {
   createdAt: string;
 }
 
+// ============================================================
+// SCM (Tahap 2)
+// ============================================================
+
+export const SUPPLIER_DELIVERY_DAYS = [
+  "senin",
+  "selasa",
+  "rabu",
+  "kamis",
+  "jumat",
+  "sabtu",
+  "minggu",
+] as const;
+export type SupplierDeliveryDay = (typeof SUPPLIER_DELIVERY_DAYS)[number];
+
+export const PURCHASE_ORDER_STATUSES = [
+  "draft",
+  "ordered",
+  "partially_received",
+  "received",
+  "cancelled",
+] as const;
+export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number];
+
+export const STOCK_MOVEMENT_TYPES = ["in", "out", "adjustment"] as const;
+export type StockMovementType = (typeof STOCK_MOVEMENT_TYPES)[number];
+
+export const STOCK_MOVEMENT_REASONS = [
+  "purchase_receipt",
+  "sale",
+  "manual_in",
+  "manual_out",
+  "damage",
+  "expired",
+  "return",
+  "initial_stock",
+  "adjustment",
+] as const;
+export type StockMovementReason = (typeof STOCK_MOVEMENT_REASONS)[number];
+
+export const BATCH_STATUSES = ["active", "depleted", "expired", "disposed"] as const;
+export type BatchStatus = (typeof BATCH_STATUSES)[number];
+
+export type StockLevelStatus = "out" | "low" | "healthy";
+
+export interface SupplierProductDTO {
+  productId: string;
+  sku: string;
+  name: string;
+  unit: ProductUnit;
+  supplierSku: string | null;
+  lastPrice: number | null;
+  isPreferred: boolean;
+}
+
+export interface SupplierDTO {
+  id: string;
+  code: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  paymentTermDays: number;
+  leadTimeDays: number;
+  deliveryDays: SupplierDeliveryDay[];
+  minimumOrder: number;
+  notes: string | null;
+  isActive: boolean;
+  suppliedProducts: SupplierProductDTO[];
+  purchaseOrderCount: number;
+  openPurchaseOrderCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PurchaseOrderItemDTO {
+  id: string;
+  productId: string;
+  sku: string;
+  name: string;
+  unit: ProductUnit;
+  shelfLifeDays: number | null;
+  quantity: number;
+  unitCost: number;
+  subtotal: number;
+  receivedQty: number;
+  remainingQty: number;
+}
+
+export interface GoodsReceiptItemDTO {
+  id: string;
+  productId: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  unitCost: number;
+  subtotal: number;
+  batchNumber: string | null;
+  productionDate: string | null;
+  expiryDate: string | null;
+}
+
+export interface GoodsReceiptDTO {
+  id: string;
+  number: string;
+  purchaseOrderId: string;
+  receivedAt: string;
+  totalValue: number;
+  notes: string | null;
+  receivedBy: Pick<UserDTO, "id" | "name"> | null;
+  items: GoodsReceiptItemDTO[];
+}
+
+export interface PurchaseOrderDTO {
+  id: string;
+  number: string;
+  status: PurchaseOrderStatus;
+  orderDate: string;
+  expectedDate: string | null;
+  receivedAt: string | null;
+  subtotal: number;
+  shippingCost: number;
+  totalAmount: number;
+  notes: string | null;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+    phone: string | null;
+    leadTimeDays: number;
+    isActive: boolean;
+  };
+  items: PurchaseOrderItemDTO[];
+  receipts: GoodsReceiptDTO[];
+  progress: {
+    orderedQty: number;
+    receivedQty: number;
+    percent: number;
+  };
+  createdBy: Pick<UserDTO, "id" | "name"> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BatchDTO {
+  id: string;
+  batchNumber: string;
+  productId: string;
+  sku: string;
+  productName: string;
+  unit: ProductUnit;
+  supplierId: string | null;
+  supplierName: string | null;
+  goodsReceiptId: string | null;
+  goodsReceiptNumber: string | null;
+  productionDate: string | null;
+  expiryDate: string | null;
+  receivedQty: number;
+  remainingQty: number;
+  unitCost: number;
+  status: BatchStatus;
+  daysToExpiry: number | null;
+  createdAt: string;
+}
+
+export interface StockLevelDTO {
+  productId: string;
+  sku: string;
+  name: string;
+  category: ProductCategory;
+  unit: ProductUnit;
+  costPrice: number;
+  stockQty: number;
+  minStockQty: number;
+  status: StockLevelStatus;
+  stockValue: number;
+  activeBatches: number;
+  nearestExpiry: string | null;
+  updatedAt: string;
+}
+
+export interface StockMovementDTO {
+  id: string;
+  reference: string;
+  productId: string;
+  sku: string;
+  productName: string;
+  unit: ProductUnit;
+  type: StockMovementType;
+  reason: StockMovementReason;
+  quantity: number;
+  stockBefore: number;
+  stockAfter: number;
+  unitCost: number | null;
+  batchId: string | null;
+  batchNumber: string | null;
+  purchaseOrderId: string | null;
+  goodsReceiptId: string | null;
+  note: string | null;
+  occurredAt: string;
+  createdBy: Pick<UserDTO, "id" | "name"> | null;
+  createdAt: string;
+}
+
+export interface ScmOverview {
+  metrics: {
+    suppliersTotal: number;
+    suppliersActive: number;
+    openPurchaseOrders: number;
+    purchaseValueThisMonth: number;
+    lowStockProducts: number;
+    outOfStockProducts: number;
+    expiringBatches: number;
+    expiredBatches: number;
+    totalStockValue: number;
+  };
+  lowStock: StockLevelDTO[];
+  expiring: BatchDTO[];
+  recentPurchaseOrders: PurchaseOrderDTO[];
+  recentMovements: StockMovementDTO[];
+}
+
 export interface DashboardSummary {
   period: {
     label: string;

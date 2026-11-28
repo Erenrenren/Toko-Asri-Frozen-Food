@@ -1,6 +1,6 @@
-# Kontrak API — Tahap 1
+# Kontrak API — Tahap 1 & 2
 
-Dokumen ini adalah **kontrak resmi** antara frontend Tahap 1 dan seluruh modul Tahap 2–4. Jangan mengubah envelope, nama field, atau arti nilai tanpa koordinasi lintas tahap.
+Dokumen ini adalah **kontrak resmi** antara frontend dan seluruh modul Tahap 1–4. Jangan mengubah envelope, nama field, atau arti nilai tanpa koordinasi lintas tahap. Bagian 10 mendokumentasikan tambahan modul SCM Tahap 2; seluruh kontrak Tahap 1 tetap berlaku.
 
 - Base URL lokal: `http://localhost:3000`
 - Content-Type request: `application/json`
@@ -551,7 +551,7 @@ Aturan:
   "data": {
     "status": "ok",
     "app": "Toko Asri Frozen Food",
-    "stage": 1,
+    "stage": 2,
     "timestamp": "2026-11-27T03:00:00.000Z"
   }
 }
@@ -573,6 +573,17 @@ Aturan:
 | `GET /api/dashboard/summary` | ✅ | ✅ | ❌ |
 | `GET/POST /api/users` | ✅ | ❌ | ❌ |
 | `PATCH /api/users/:id` | ✅ | ❌ | ❌ |
+| `GET /api/scm/overview` | ✅ | ✅ | ❌ |
+| `GET/POST /api/scm/suppliers` | ✅ | ✅ | ❌ |
+| `GET/PATCH /api/scm/suppliers/:id` | ✅ | ✅ | ❌ |
+| `GET/POST /api/scm/purchase-orders` | ✅ | ✅ | ❌ |
+| `GET /api/scm/purchase-orders/:id` | ✅ | ✅ | ❌ |
+| `PATCH /api/scm/purchase-orders/:id` (submit) | ✅ | ✅ | ❌ |
+| `PATCH /api/scm/purchase-orders/:id` (cancel) | ✅ | ❌ | ❌ |
+| `POST /api/scm/purchase-orders/:id/receive` | ✅ | ✅ | ❌ |
+| `GET /api/scm/stock`, `/api/scm/stock/:productId` | ✅ | ✅ | ❌ |
+| `GET /api/scm/batches` | ✅ | ✅ | ❌ |
+| `GET/POST /api/scm/stock-movements` | ✅ | ✅ | ❌ |
 | `GET /api/health` | publik | publik | publik |
 
 ---
@@ -602,11 +613,196 @@ curl -b cookies.txt -X POST http://localhost:3000/api/auth/logout
 
 ---
 
-## 10. Endpoint yang Dicadangkan untuk Tahap Berikutnya
+## 10. Modul SCM (Tahap 2)
+
+Semua endpoint di bawah memakai cookie sesi yang sama, envelope yang sama, dan akses `admin`/`staff`. Endpoint baca mengembalikan `403` untuk `customer`.
+
+### 10.1 Supplier
+
+| Method | Endpoint | Catatan |
+| --- | --- | --- |
+| GET | `/api/scm/suppliers` | Query: `search`, `status=active|inactive|all`, `page`, `pageSize` |
+| POST | `/api/scm/suppliers` | Buat supplier + tautan produk |
+| GET | `/api/scm/suppliers/:id` | Detail supplier |
+| PATCH | `/api/scm/suppliers/:id` | Update sebagian; `products` mengganti seluruh tautan |
+
+**Body POST/PATCH**
+
+```json
+{
+  "name": "PT Frozen Nusantara",
+  "contactName": "Hendra",
+  "phone": "022-555-0101",
+  "email": "sales@frozennusantara.co.id",
+  "address": "Jl. Industri Raya No. 18",
+  "city": "Bandung",
+  "paymentTermDays": 30,
+  "leadTimeDays": 2,
+  "deliveryDays": ["senin", "kamis"],
+  "minimumOrder": 1500000,
+  "notes": "Kirim pagi",
+  "isActive": true,
+  "products": [
+    { "productId": "prod_id", "supplierSku": null, "lastPrice": 27500, "isPreferred": true }
+  ]
+}
+```
+
+- `code` dibuat otomatis (`SUP-XXXX`), bukan input.
+- Nama supplier duplikat (case-insensitive) ditolak `400`.
+- Supplier nonaktif tetap muncul di list, tetapi tidak dapat dipilih saat membuat PO.
+
+**Response 200/201** — `SupplierDTO`.
+
+### 10.2 Purchase Order
+
+| Method | Endpoint | Catatan |
+| --- | --- | --- |
+| GET | `/api/scm/purchase-orders` | Query: `search`, `status`, `supplierId`, `from`, `to`, `page`, `pageSize` |
+| POST | `/api/scm/purchase-orders` | Buat PO (`status: draft|ordered`) |
+| GET | `/api/scm/purchase-orders/:id` | Detail + item + riwayat receipt + progress |
+| PATCH | `/api/scm/purchase-orders/:id` | `{ "action": "submit" | "cancel" }` |
+| POST | `/api/scm/purchase-orders/:id/receive` | Goods receipt |
+
+**Body POST**
+
+```json
+{
+  "supplierId": "sup_id",
+  "status": "ordered",
+  "expectedDate": "2026-11-29",
+  "shippingCost": 75000,
+  "notes": "Kirim pagi",
+  "items": [
+    { "productId": "prod_id", "quantity": 24, "unitCost": 27500 }
+  ]
+}
+```
+
+Aturan:
+
+- Supplier harus aktif dan produk harus terdaftar pada supplier tersebut.
+- Satu produk tidak boleh muncul dua kali dalam satu PO.
+- Hanya PO `draft` yang bisa di-`submit`; hanya PO `draft`/`ordered` tanpa receipt yang bisa di-`cancel`.
+- `cancel` hanya untuk `admin` (`403` untuk `staff`).
+- Total PO = subtotal item + biaya kirim. **Belum** menjadi pengeluaran kas sampai barang diterima.
+
+**Body receive**
+
+```json
+{
+  "receivedAt": "2026-11-27",
+  "notes": "Surat jalan SJ-001",
+  "items": [
+    {
+      "purchaseOrderItemId": "po_item_id",
+      "quantity": 24,
+      "batchNumber": "NGT-20261127",
+      "productionDate": "2026-11-20",
+      "expiryDate": "2027-05-20"
+    }
+  ]
+}
+```
+
+**Response 201 receive**
+
+```json
+{
+  "success": true,
+  "data": {
+    "receipt": { "id": "...", "number": "GR-20261127-6FEB13", "totalValue": 660000, "...": "..." },
+    "purchaseOrder": { "id": "...", "status": "partially_received", "...": "..." },
+    "financialTransactionCode": "TRX-20261127-D86F9F"
+  },
+  "message": "Penerimaan GR-20261127-6FEB13 tercatat. Stok dan jurnal pembelian diperbarui."
+}
+```
+
+Efek satu transaksi database:
+
+1. `Product.stockQty` bertambah.
+2. `ProductBatch` dibuat (nomor batch, produksi, expiry, sisa).
+3. `StockMovement` tipe `in` alasan `purchase_receipt` dibuat.
+4. `GoodsReceipt` + item tersimpan; `receivedQty` item PO bertambah.
+5. `FinancialTransaction` `type=expense`, `category=purchase`, `source=scm`, `externalRef=<nomor PO>` dibuat.
+
+Penerimaan boleh sebagian. Status PO menjadi `partially_received` atau `received`.
+
+### 10.3 Stok & Batch
+
+| Method | Endpoint | Catatan |
+| --- | --- | --- |
+| GET | `/api/scm/stock` | Query: `search`, `category`, `status=all|healthy|low|out`, `page`, `pageSize` |
+| GET | `/api/scm/stock/:productId` | `{ stock, batches, movements }` untuk satu produk |
+| GET | `/api/scm/batches` | Query: `search`, `productId`, `status=all|active|expiring|expired|depleted` |
+
+Status stok dihitung: `out` bila `stockQty <= 0`, `low` bila `stockQty <= minStockQty`, selain itu `healthy`. Batch `expired` bila `expiryDate < hari ini`, `expiring` bila ≤ 30 hari, `depleted` bila sisa 0.
+
+### 10.4 Mutasi Stok
+
+| Method | Endpoint | Catatan |
+| --- | --- | --- |
+| GET | `/api/scm/stock-movements` | Query: `search`, `productId`, `type`, `reason`, `from`, `to`, `page`, `pageSize` |
+| POST | `/api/scm/stock-movements` | Catat masuk/keluar/adjustment |
+
+**Body POST**
+
+```json
+{
+  "productId": "prod_id",
+  "type": "in",
+  "quantity": 10,
+  "reason": "manual_in",
+  "unitCost": 27500,
+  "batchNumber": "BATCH-MANUAL-01",
+  "productionDate": "2026-11-20",
+  "expiryDate": "2027-05-20",
+  "note": "Temuan stok gudang"
+}
+```
+
+Aturan:
+
+- `in`/`out`: `quantity` harus **positif**; service memberi tanda (out menjadi negatif).
+- `adjustment`: `quantity` bertanda `+`/`-`, tidak boleh 0.
+- Stok tidak boleh menjadi negatif.
+- `reason` tersedia: `manual_in`, `manual_out`, `purchase_receipt`, `sale`, `return`, `damage`, `expired`, `adjustment`, `initial_stock`.
+- `reason: "purchase_receipt"` **ditolak** di endpoint manual; penerimaan pembelian wajib lewat PO agar jurnal kas ikut tercatat.
+- Untuk `out` tanpa `batchId`, sistem memakai **FIFO expiry terdekat** dan memecah mutasi per batch.
+- `quantity` pada response/log bertanda: masuk `+`, keluar `-`.
+
+### 10.5 Ringkasan SCM
+
+`GET /api/scm/overview` → `ScmOverview`:
+
+```json
+{
+  "metrics": {
+    "suppliersTotal": 3,
+    "suppliersActive": 2,
+    "openPurchaseOrders": 1,
+    "purchaseValueThisMonth": 1398000,
+    "lowStockProducts": 2,
+    "outOfStockProducts": 0,
+    "expiringBatches": 2,
+    "expiredBatches": 1,
+    "totalStockValue": 8450000
+  },
+  "lowStock": ["StockLevelDTO"],
+  "expiring": ["BatchDTO"],
+  "recentPurchaseOrders": ["PurchaseOrderDTO"],
+  "recentMovements": ["StockMovementDTO"]
+}
+```
+
+---
+
+## 11. Endpoint yang Dicadangkan untuk Tahap Berikutnya
 
 | Tahap | Rencana endpoint | Status |
 | --- | --- | --- |
-| 2 | `/api/scm/suppliers`, `/api/scm/purchase-orders`, `/api/scm/stock-movements` | Belum ada |
+| 2 | `/api/scm/suppliers`, `/api/scm/purchase-orders`, `/api/scm/stock-movements` | ✅ Tersedia |
 | 3 | `/api/crm/customers`, `/api/crm/loyalty`, `/api/crm/history` | Belum ada |
 | 4 | `/api/payments/checkout`, `/api/payments/webhooks`, `/api/payments/invoices` | Belum ada |
 

@@ -1,5 +1,9 @@
-// Prisma schema - Toko Asri Frozen Food (Tahap 1)
-// Catatan: SQLite tidak mendukung enum native, sehingga kolom kategori/peran
+// Prisma schema - Toko Asri Frozen Food
+// Tahap 1: User, Product, FinancialTransaction.
+// Tahap 2 (aditif, backward-compatible): Supplier, PurchaseOrder, GoodsReceipt,
+// ProductBatch, StockMovement. Kolom Tahap 1 tidak diubah/dihapus.
+//
+// Catatan: SQLite tidak mendukung enum native, sehingga kolom kategori/peran/status
 // memakai String yang divalidasi di layer Zod (lib/validators) dan TypeScript.
 // Saat migrasi ke PostgreSQL, enum dapat ditambahkan tanpa mengubah kontrak API.
 
@@ -23,7 +27,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  transactions FinancialTransaction[] @relation("CreatedTransactions")
+  transactions   FinancialTransaction[] @relation("CreatedTransactions")
+  purchaseOrders PurchaseOrder[]        @relation("CreatedPurchaseOrders")
+  goodsReceipts  GoodsReceipt[]         @relation("ReceivedGoods")
+  stockMovements StockMovement[]        @relation("CreatedStockMovements")
 
   @@index([role])
   @@index([isActive])
@@ -48,7 +55,12 @@ model Product {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  transactions FinancialTransaction[]
+  transactions       FinancialTransaction[]
+  supplierProducts   SupplierProduct[]
+  purchaseOrderItems PurchaseOrderItem[]
+  goodsReceiptItems  GoodsReceiptItem[]
+  batches            ProductBatch[]
+  stockMovements     StockMovement[]
 
   @@index([category])
   @@index([isActive])
@@ -84,4 +96,192 @@ model FinancialTransaction {
   @@index([productId])
   @@index([createdById])
   @@map("financial_transactions")
+}
+
+// ============================================================
+// TAHAP 2 — SUPPLY CHAIN MANAGEMENT
+// ============================================================
+
+model Supplier {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  contactName     String?
+  phone           String?
+  email           String?
+  address         String?
+  city            String?
+  paymentTermDays Int      @default(0) // termin pembayaran (hari)
+  leadTimeDays    Int      @default(1) // estimasi lead time (hari)
+  deliveryDays    String? // jadwal kirim, mis. "senin,kamis"
+  minimumOrder    Int      @default(0) // minimum pembelian (Rupiah)
+  notes           String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  products       SupplierProduct[]
+  purchaseOrders PurchaseOrder[]
+  batches        ProductBatch[]
+
+  @@index([isActive])
+  @@index([name])
+  @@map("suppliers")
+}
+
+model SupplierProduct {
+  id          String   @id @default(cuid())
+  supplierId  String
+  productId   String
+  supplierSku String?
+  lastPrice   Int? // harga beli terakhir per unit (Rupiah)
+  isPreferred Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, productId])
+  @@index([productId])
+  @@map("supplier_products")
+}
+
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  number       String    @unique
+  supplierId   String
+  status       String    @default("draft") // draft | ordered | partially_received | received | cancelled
+  orderDate    DateTime  @default(now())
+  expectedDate DateTime?
+  receivedAt   DateTime?
+  subtotal     Int       @default(0)
+  shippingCost Int       @default(0)
+  totalAmount  Int       @default(0)
+  notes        String?
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  supplier  Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy User                @relation("CreatedPurchaseOrders", fields: [createdById], references: [id], onDelete: Restrict)
+  items     PurchaseOrderItem[]
+  receipts  GoodsReceipt[]
+
+  @@index([status])
+  @@index([supplierId])
+  @@index([orderDate])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String @id @default(cuid())
+  purchaseOrderId String
+  productId       String
+  quantity        Int
+  unitCost        Int
+  receivedQty     Int    @default(0)
+  subtotal        Int
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseOrderId, productId])
+  @@index([productId])
+  @@map("purchase_order_items")
+}
+
+model GoodsReceipt {
+  id              String   @id @default(cuid())
+  number          String   @unique
+  purchaseOrderId String
+  receivedById    String
+  receivedAt      DateTime @default(now())
+  totalValue      Int      @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receivedBy    User               @relation("ReceivedGoods", fields: [receivedById], references: [id], onDelete: Restrict)
+  items         GoodsReceiptItem[]
+  batches       ProductBatch[]
+
+  @@index([purchaseOrderId])
+  @@index([receivedAt])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptItem {
+  id             String    @id @default(cuid())
+  goodsReceiptId String
+  productId      String
+  quantity       Int
+  unitCost       Int
+  subtotal       Int
+  batchNumber    String?
+  productionDate DateTime?
+  expiryDate     DateTime?
+
+  goodsReceipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([goodsReceiptId])
+  @@index([productId])
+  @@map("goods_receipt_items")
+}
+
+model ProductBatch {
+  id             String    @id @default(cuid())
+  batchNumber    String
+  productId      String
+  supplierId     String?
+  goodsReceiptId String?
+  productionDate DateTime?
+  expiryDate     DateTime?
+  receivedQty    Int
+  remainingQty   Int
+  unitCost       Int       @default(0)
+  status         String    @default("active") // active | depleted | expired | disposed
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  product      Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier     Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  goodsReceipt GoodsReceipt?   @relation(fields: [goodsReceiptId], references: [id], onDelete: SetNull)
+  movements    StockMovement[]
+
+  @@unique([productId, batchNumber])
+  @@index([productId, expiryDate])
+  @@index([status])
+  @@index([supplierId])
+  @@map("product_batches")
+}
+
+model StockMovement {
+  id              String   @id @default(cuid())
+  reference       String   @unique
+  productId       String
+  type            String // in | out | adjustment
+  reason          String // purchase_receipt | sale | manual_in | manual_out | damage | expired | return | initial_stock | adjustment
+  quantity        Int // bertanda: masuk positif, keluar negatif, adjustment bisa +/-.
+  stockBefore     Int
+  stockAfter      Int
+  unitCost        Int?
+  batchId         String?
+  purchaseOrderId String?
+  goodsReceiptId  String?
+  note            String?
+  occurredAt      DateTime @default(now())
+  createdById     String
+  createdAt       DateTime @default(now())
+
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batch     ProductBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdBy User          @relation("CreatedStockMovements", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([productId, occurredAt])
+  @@index([type])
+  @@index([reason])
+  @@index([occurredAt])
+  @@map("stock_movements")
 }

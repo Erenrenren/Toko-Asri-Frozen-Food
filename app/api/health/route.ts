@@ -6,7 +6,7 @@ export async function GET() {
   return ok({
     status: "ok",
     app: "Toko Asri Frozen Food",
-    stage: 1,
+    stage: 2,
     timestamp: new Date().toISOString(),
   });
 }

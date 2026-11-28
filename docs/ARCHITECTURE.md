@@ -1,6 +1,6 @@
 # Arsitektur & Konvensi Pengembangan
 
-Dokumen ini menjelaskan arsitektur Tahap 1 dan aturan perluasan untuk Tahap 2–4. Tujuannya agar empat orang dapat bekerja paralel tanpa mengubah kontrak dasar.
+Dokumen ini menjelaskan arsitektur Tahap 1–2 dan aturan perluasan untuk Tahap 3–4. Tujuannya agar empat orang dapat bekerja paralel tanpa mengubah kontrak dasar.
 
 ---
 
@@ -49,17 +49,19 @@ Browser
 | `app/(dashboard)/dashboard/products` | ✅ | — |
 | `app/(dashboard)/dashboard/transactions` | ✅ | — |
 | `app/(dashboard)/dashboard/users` | ✅ | — |
-| `app/(dashboard)/dashboard/scm` | Placeholder | Orang 2 |
+| `app/(dashboard)/dashboard/scm` | ✅ Tahap 2 | — |
 | `app/(dashboard)/dashboard/crm` | Placeholder | Orang 3 |
 | `app/(dashboard)/dashboard/payments` | Placeholder | Orang 4 |
 | `app/api/products`, `transactions`, `users`, `auth` | ✅ | Jangan ubah kontrak |
-| `app/api/scm/**` | Belum ada | Orang 2 |
+| `app/api/scm/**` | ✅ Tahap 2 | Jangan ubah kontrak |
 | `app/api/crm/**` | Belum ada | Orang 3 |
 | `app/api/payments/**` | Belum ada | Orang 4 |
 | `lib/services/product|transaction|user.service.ts` | ✅ | Boleh ditambah method, jangan ubah signature lama |
-| `lib/services/scm|crm|payment/**` | Belum ada | Masing-masing |
-| `components/scm|crm|payments/**` | Belum ada | Masing-masing |
-| `prisma/schema.prisma` | Model inti | Tambah model/relasi baru; jangan hapus field inti |
+| `lib/services/scm/**` | ✅ Tahap 2 | — |
+| `lib/services/crm|payment/**` | Belum ada | Masing-masing |
+| `components/scm/**` | ✅ Tahap 2 | — |
+| `components/crm|payments/**` | Belum ada | Masing-masing |
+| `prisma/schema.prisma` | Model inti + SCM | Tambah model/relasi baru; jangan hapus field inti |
 
 **Aturan anti-konflik:**
 
@@ -144,11 +146,24 @@ Semua harga dan nominal memakai `Int`. Ini menghindari pembulatan floating point
 
 `DELETE /api/products/:id` menonaktifkan produk (`isActive=false`), bukan menghapus baris. Tujuannya menjaga integritas transaksi historis.
 
-### 7.4 Stok belum otomatis
+### 7.4 Stok dan mutasi
 
-`Product.stockQty` adalah data master. Penjualan Tahap 1 **tidak** mengurangi stok. Modul SCM Tahap 2 akan memiliki alur mutasi stok (masuk/keluar/opname) agar audit stok jelas dan tidak dobel.
+`Product.stockQty` tetap menjadi saldo stok yang dibaca katalog dan dashboard. Perubahan stok **hanya** terjadi melalui service SCM:
 
-### 7.5 SQLite → PostgreSQL
+- Goods receipt PO (menambah stok + batch + mutasi `in` + jurnal pembelian).
+- Mutasi manual (`in`, `out`, `adjustment`) dari halaman stok.
+
+Penjualan Tahap 1 **tidak** mengurangi stok agar perilaku lama tidak berubah. Stok keluar penjualan dapat dicatat sebagai mutasi `out` dengan alasan `sale`; integrasi otomatis diserahkan ke Tahap 3 (lihat `docs/HANDOFF-STAGE-3.md`).
+
+### 7.5 Atomisitas penerimaan barang
+
+`receivePurchaseOrder` membungkus seluruh proses dalam `prisma.$transaction`. Ini mencegah kondisi stok bertambah tetapi jurnal kas gagal dibuat (atau sebaliknya). Nomor dokumen (`PO-`, `GR-`, `MOV-`, `TRX-`) memakai tanggal + suffix acak untuk menghindari tabrakan.
+
+### 7.6 Batch & FIFO
+
+Batch menyimpan `receivedQty`, `remainingQty`, dan `expiryDate`. Mutasi keluar tanpa batch eksplisit memakai **FIFO expiry terdekat**: batch dengan expiry paling awal dikonsumsi lebih dulu, dan bila perlu mutasi dipecah menjadi beberapa baris per batch. Status `expired` dihitung saat dibaca dari tanggal, sehingga tidak butuh cron job.
+
+### 7.7 SQLite → PostgreSQL
 
 SQLite dipilih untuk kemudahan demo lokal. Schema tidak memakai enum native agar kompatibel. Saat pindah PostgreSQL, enum dapat ditambahkan atau tetap memakai String + Zod.
 
@@ -176,32 +191,44 @@ Contoh alur untuk SCM:
 
 ---
 
-## 9. Struktur Folder Masa Depan (Rencana)
+## 9. Struktur Folder SCM (sudah tersedia)
 
 ```text
-app/api/
-├─ scm/
-│  ├─ suppliers/route.ts
-│  ├─ purchase-orders/route.ts
-│  └─ stock-movements/route.ts
-├─ crm/
-│  ├─ customers/route.ts
-│  ├─ loyalty/route.ts
-│  └─ history/route.ts
-└─ payments/
-   ├─ invoices/route.ts
-   ├─ checkout/route.ts
-   └─ webhooks/route.ts
+app/api/scm/
+├─ overview/route.ts
+├─ suppliers/route.ts
+├─ suppliers/[id]/route.ts
+├─ purchase-orders/route.ts
+├─ purchase-orders/[id]/route.ts
+├─ purchase-orders/[id]/receive/route.ts
+├─ stock/route.ts
+├─ stock/[productId]/route.ts
+├─ batches/route.ts
+└─ stock-movements/route.ts
 
-lib/services/
-├─ scm/
-├─ crm/
-└─ payment/
+lib/services/scm/
+├─ scm.utils.ts
+├─ supplier.service.ts
+├─ purchase-order.service.ts
+├─ stock.service.ts
+└─ overview.service.ts
 
-components/
-├─ scm/
-├─ crm/
-└─ payments/
+components/scm/
+├─ scm-nav.tsx
+├─ scm-badges.tsx
+├─ supplier-form.tsx
+├─ supplier-row-actions.tsx
+├─ purchase-order-form.tsx
+├─ purchase-order-actions.tsx
+├─ receive-form.tsx
+└─ stock-adjustment-form.tsx
+```
+
+Rencana Tahap 3–4:
+
+```text
+app/api/crm/            lib/services/crm/            components/crm/
+app/api/payments/       lib/services/payment/        components/payments/
 ```
 
 ---
@@ -210,4 +237,6 @@ components/
 
 - Kontrak API: [API_CONTRACT.md](API_CONTRACT.md)
 - Checklist Tahap 1: [STAGE-1-CHECKLIST.md](STAGE-1-CHECKLIST.md)
+- Checklist Tahap 2: [STAGE-2-CHECKLIST.md](STAGE-2-CHECKLIST.md)
 - Handoff Orang 2: [HANDOFF-STAGE-2.md](HANDOFF-STAGE-2.md)
+- Handoff Orang 3 (CRM): [HANDOFF-STAGE-3.md](HANDOFF-STAGE-3.md)

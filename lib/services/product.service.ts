@@ -204,6 +204,7 @@ export async function listProductOptions() {
       costPrice: true,
       unit: true,
       stockQty: true,
+      minStockQty: true,
     },
   });
 

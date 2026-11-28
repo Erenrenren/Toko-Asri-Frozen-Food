@@ -1,15 +1,26 @@
 import type {
+  BatchStatus,
   ProductCategory,
   ProductUnit,
+  PurchaseOrderStatus,
   Role,
+  StockLevelStatus,
+  StockMovementReason,
+  StockMovementType,
+  SupplierDeliveryDay,
   TransactionCategory,
   TransactionType,
 } from "@/types/domain";
 
 export {
+  BATCH_STATUSES,
   PRODUCT_CATEGORIES,
   PRODUCT_UNITS,
+  PURCHASE_ORDER_STATUSES,
   ROLES,
+  STOCK_MOVEMENT_REASONS,
+  STOCK_MOVEMENT_TYPES,
+  SUPPLIER_DELIVERY_DAYS,
   TRANSACTION_CATEGORIES,
   TRANSACTION_TYPES,
 } from "@/types/domain";
@@ -66,6 +77,66 @@ export const TRANSACTION_CATEGORY_LABELS: Record<TransactionCategory, string> = 
 };
 
 export const STORAGE_TEMPERATURE_PRESETS = [-25, -20, -18, -10, 0, 4] as const;
+
+// --- SCM (Tahap 2) -------------------------------------------------
+
+export const SUPPLIER_DELIVERY_DAY_LABELS: Record<SupplierDeliveryDay, string> = {
+  senin: "Senin",
+  selasa: "Selasa",
+  rabu: "Rabu",
+  kamis: "Kamis",
+  jumat: "Jumat",
+  sabtu: "Sabtu",
+  minggu: "Minggu",
+};
+
+export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
+  draft: "Draft",
+  ordered: "Dikirim ke supplier",
+  partially_received: "Diterima sebagian",
+  received: "Diterima lengkap",
+  cancelled: "Dibatalkan",
+};
+
+export const STOCK_MOVEMENT_TYPE_LABELS: Record<StockMovementType, string> = {
+  in: "Barang masuk",
+  out: "Barang keluar",
+  adjustment: "Penyesuaian",
+};
+
+export const STOCK_MOVEMENT_REASON_LABELS: Record<StockMovementReason, string> = {
+  purchase_receipt: "Penerimaan PO",
+  sale: "Penjualan",
+  manual_in: "Stok masuk manual",
+  manual_out: "Stok keluar manual",
+  damage: "Barang rusak",
+  expired: "Kedaluwarsa",
+  return: "Retur",
+  initial_stock: "Stok awal",
+  adjustment: "Stok opname",
+};
+
+export const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {
+  active: "Aktif",
+  depleted: "Habis",
+  expired: "Kedaluwarsa",
+  disposed: "Dimusnahkan",
+};
+
+export const STOCK_LEVEL_STATUS_LABELS: Record<StockLevelStatus, string> = {
+  out: "Stok habis",
+  low: "Stok menipis",
+  healthy: "Aman",
+};
+
+export const SCM_NAV_ITEMS = [
+  { label: "Ringkasan", href: "/dashboard/scm", exact: true },
+  { label: "Supplier", href: "/dashboard/scm/suppliers", exact: false },
+  { label: "Purchase Order", href: "/dashboard/scm/purchase-orders", exact: false },
+  { label: "Stok", href: "/dashboard/scm/stock", exact: false },
+  { label: "Batch & Expiry", href: "/dashboard/scm/batches", exact: false },
+  { label: "Mutasi Stok", href: "/dashboard/scm/stock-movements", exact: false },
+] as const;
 
 export const NAV_ITEMS = [
   {

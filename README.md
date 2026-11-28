@@ -1,33 +1,37 @@
 # Toko Asri Frozen Food — SaaS ERP
 
-Aplikasi web SaaS untuk tugas akhir **Sistem Informasi Manajemen (SIM)** dengan studi kasus **Toko Asri Frozen Food**. Repositori ini berisi **Tahap 1 dari 4**: fondasi proyek, autentikasi berbasis peran (RBAC), dan modul ERP inti.
+Aplikasi web SaaS untuk tugas akhir **Sistem Informasi Manajemen (SIM)** dengan studi kasus **Toko Asri Frozen Food**. Repositori ini sudah berisi **Tahap 1 dan Tahap 2**: fondasi ERP + RBAC, lalu modul **SCM (Supply Chain Management)** dengan supplier, purchase order, goods receipt, stok, batch cold-chain, dan mutasi stok.
 
-> Branch pengembangan Tahap 1: `stage-1/foundation-auth-erp` (dibuat dari `main`).
+> Branch Tahap 1: `stage-1/foundation-auth-erp` · Branch Tahap 2: `stage-2/scm-inventory` (keduanya sudah di-merge ke `main`).
 
 ---
 
-## 1. Ringkasan Tahap 1
+## 1. Ringkasan Tahap 1 & 2
 
-| Area | Status Tahap 1 |
+| Area | Status |
 | --- | --- |
-| Fondasi Next.js + TypeScript + Tailwind | ✅ |
-| Autentikasi login/logout/registrasi | ✅ |
-| RBAC `admin`, `staff`, `customer` | ✅ |
-| Manajemen akun dasar (admin) | ✅ |
-| Master produk frozen food (SKU, kategori, HPP, harga jual, satuan, suhu, shelf life) | ✅ |
-| Jurnal kas pemasukan/pengeluaran | ✅ |
-| Rekap omzet, HPP, laba kotor, laba bersih | ✅ |
-| Dashboard ERP + navigasi modul | ✅ |
-| Placeholder aman SCM, CRM, Pembayaran | ✅ (UI + kontrak, tanpa logika detail) |
-| Portal katalog pelanggan | ✅ (read-only) |
-| API contract & dokumentasi | ✅ |
+| Fondasi Next.js + TypeScript + Tailwind | ✅ Tahap 1 |
+| Autentikasi login/logout/registrasi | ✅ Tahap 1 |
+| RBAC `admin`, `staff`, `customer` | ✅ Tahap 1 |
+| Manajemen akun dasar (admin) | ✅ Tahap 1 |
+| Master produk frozen food (SKU, kategori, HPP, harga jual, satuan, suhu, shelf life) | ✅ Tahap 1 |
+| Jurnal kas pemasukan/pengeluaran | ✅ Tahap 1 |
+| Rekap omzet, HPP, laba kotor, laba bersih | ✅ Tahap 1 |
+| Dashboard ERP + navigasi modul | ✅ Tahap 1 |
+| Portal katalog pelanggan | ✅ Tahap 1 (read-only) |
+| **Master supplier** (kontak, alamat, lead time, termin, jadwal kirim, minimum order, produk yang disuplai) | ✅ Tahap 2 |
+| **Purchase order** (draft → dikirim → diterima sebagian/lengkap, batal oleh admin) | ✅ Tahap 2 |
+| **Goods receipt** (stok masuk otomatis + batch + mutasi + jurnal pembelian) | ✅ Tahap 2 |
+| **Stok vs stok minimum**, penanda menipis/habis, nilai persediaan | ✅ Tahap 2 |
+| **Batch & cold-chain** (nomor batch, tanggal produksi, expiry, sisa, status efektif) | ✅ Tahap 2 |
+| **Mutasi stok** masuk/keluar/adjustment dengan FIFO expiry terdekat | ✅ Tahap 2 |
+| Placeholder aman CRM, Pembayaran | ✅ (UI + kontrak) |
 
-**Di luar cakupan Tahap 1 (sengaja belum diimplementasikan):**
+**Di luar cakupan Tahap 1–2 (sengaja belum diimplementasikan):**
 
-- Restock otomatis, supplier, purchase order, cold-chain monitoring (SCM — Tahap 2).
 - Loyalty, riwayat pelanggan lanjutan, segmentasi (CRM — Tahap 3).
 - Payment gateway, invoice, rekonsiliasi, refund (Pembayaran — Tahap 4).
-- Pengurangan stok otomatis saat penjualan. Stok pada Tahap 1 adalah data master; mutasi stok akan ditangani modul SCM.
+- Pengurangan stok otomatis saat penjualan Tahap 1. Stok keluar tersedia melalui **mutasi stok SCM** agar alur penjualan lama tidak berubah. Integrasi otomatis penjualan → stok diserahkan ke tahap berikutnya (lihat `docs/HANDOFF-STAGE-3.md`).
 
 ---
 
@@ -58,8 +62,8 @@ Aplikasi web SaaS untuk tugas akhir **Sistem Informasi Manajemen (SIM)** dengan 
 git clone https://github.com/Erenrenren/Toko-Asri-Frozen-Food.git
 cd Toko-Asri-Frozen-Food
 
-# 2. Gunakan branch Tahap 1
-git checkout stage-1/foundation-auth-erp
+# 2. Gunakan branch Tahap 2 (atau main yang sudah berisi Tahap 1+2)
+git checkout main
 
 # 3. Install dependency
 npm install
@@ -124,7 +128,13 @@ Toko-Asri-Frozen-Food/
 │  │     ├─ products/               # List, create, edit produk
 │  │     ├─ transactions/           # Jurnal kas + form transaksi
 │  │     ├─ users/                  # Pengelolaan akun (admin)
-│  │     ├─ scm/page.tsx            # Placeholder Tahap 2
+│  │     ├─ scm/                    # Tahap 2: SCM lengkap
+│  │     │  ├─ page.tsx             # Ringkasan SCM
+│  │     │  ├─ suppliers/           # List, tambah, edit supplier
+│  │     │  ├─ purchase-orders/     # List, buat, detail, terima barang
+│  │     │  ├─ stock/               # Stok, reorder, detail + mutasi
+│  │     │  ├─ batches/             # Batch & expiry cold-chain
+│  │     │  └─ stock-movements/     # Audit mutasi stok
 │  │     ├─ crm/page.tsx            # Placeholder Tahap 3
 │  │     └─ payments/page.tsx       # Placeholder Tahap 4
 │  ├─ portal/                       # Portal pelanggan (customer)
@@ -137,6 +147,17 @@ Toko-Asri-Frozen-Food/
 │  │  ├─ dashboard/summary/route.ts
 │  │  ├─ users/route.ts
 │  │  ├─ users/[id]/route.ts
+│  │  ├─ scm/                       # Tahap 2
+│  │  │  ├─ overview/route.ts
+│  │  │  ├─ suppliers/route.ts
+│  │  │  ├─ suppliers/[id]/route.ts
+│  │  │  ├─ purchase-orders/route.ts
+│  │  │  ├─ purchase-orders/[id]/route.ts
+│  │  │  ├─ purchase-orders/[id]/receive/route.ts
+│  │  │  ├─ stock/route.ts
+│  │  │  ├─ stock/[productId]/route.ts
+│  │  │  ├─ batches/route.ts
+│  │  │  └─ stock-movements/route.ts
 │  │  └─ health/route.ts
 │  ├─ layout.tsx
 │  ├─ page.tsx                      # Landing page
@@ -150,6 +171,7 @@ Toko-Asri-Frozen-Food/
 │  ├─ layout/                       # Shell, sidebar, topbar, portal header
 │  ├─ products/                     # Filter, form, row actions
 │  ├─ transactions/                 # Filter, form, badges, row actions
+│  ├─ scm/                          # Tahap 2: nav, form, badge, receive, mutasi
 │  ├─ ui/                           # Button, input, card, badge, dll.
 │  └─ users/                        # Pengelolaan akun
 ├─ lib/
@@ -157,21 +179,24 @@ Toko-Asri-Frozen-Food/
 │  ├─ auth/                         # JWT, session, password, RBAC
 │  ├─ db/prisma.ts                  # Prisma singleton
 │  ├─ services/                     # Business/data layer
-│  ├─ validators/                   # Schema Zod
+│  │  └─ scm/                       # supplier, PO, stock, overview, utils
+│  ├─ validators/                   # Schema Zod (termasuk scm.ts)
 │  ├─ constants.ts                  # Label, navigasi, konfigurasi
 │  └─ format.ts                     # Formatter Rupiah/tanggal + cn()
 ├─ prisma/
-│  ├─ schema.prisma                 # Model User, Product, FinancialTransaction
-│  ├─ seed.ts                       # Data demo
+│  ├─ schema.prisma                 # Model inti + model SCM Tahap 2
+│  ├─ seed.ts                       # Data demo (termasuk supplier/PO/batch)
 │  └─ dev.db                        # SQLite lokal (gitignored)
 ├─ types/
-│  ├─ domain.ts                     # Tipe & konstanta domain
+│  ├─ domain.ts                     # Tipe & konstanta domain (termasuk SCM)
 │  └─ api.ts                        # Kontrak envelope API
 ├─ docs/
 │  ├─ ARCHITECTURE.md
 │  ├─ API_CONTRACT.md
 │  ├─ STAGE-1-CHECKLIST.md
-│  └─ HANDOFF-STAGE-2.md
+│  ├─ STAGE-2-CHECKLIST.md
+│  ├─ HANDOFF-STAGE-2.md
+│  └─ HANDOFF-STAGE-3.md
 ├─ middleware.ts                    # Proteksi route berbasis JWT + role
 ├─ .env.example
 ├─ tailwind.config.ts
@@ -180,7 +205,7 @@ Toko-Asri-Frozen-Food/
 └─ package.json
 ```
 
-Folder untuk Tahap 2–4 **belum dibuat** agar tidak ada direktori kosong. Rencana penempatannya ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) dan halaman placeholder masing-masing modul.
+Folder untuk Tahap 3–4 **belum dibuat** agar tidak ada direktori kosong. Rencana penempatannya ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/HANDOFF-STAGE-3.md](docs/HANDOFF-STAGE-3.md), dan halaman placeholder masing-masing modul.
 
 ---
 
@@ -194,7 +219,11 @@ Folder untuk Tahap 2–4 **belum dibuat** agar tidak ada direktori kosong. Renca
 | Catat pemasukan/pengeluaran | ✅ | ✅ | ❌ |
 | Batalkan (void) transaksi | ✅ | ❌ | ❌ |
 | Kelola pengguna & peran | ✅ | ❌ | ❌ |
-| Placeholder SCM/CRM/Pembayaran | ✅ | ✅ | ❌ |
+| Lihat modul SCM | ✅ | ✅ | ❌ |
+| Kelola supplier | ✅ | ✅ | ❌ |
+| Buat/kirim/terima purchase order | ✅ | ✅ | ❌ |
+| Batalkan purchase order | ✅ | ❌ | ❌ |
+| Mutasi stok (masuk/keluar/opname) | ✅ | ✅ | ❌ |
 | Portal pelanggan | ❌ | ❌ | ✅ |
 
 **Aturan penting:**
@@ -234,6 +263,16 @@ Endpoint utama:
 | GET | `/api/dashboard/summary` | admin, staff |
 | GET/POST | `/api/users` | admin |
 | PATCH | `/api/users/:id` | admin |
+| GET | `/api/scm/overview` | admin, staff |
+| GET/POST | `/api/scm/suppliers` | admin, staff |
+| GET/PATCH | `/api/scm/suppliers/:id` | admin, staff |
+| GET/POST | `/api/scm/purchase-orders` | admin, staff |
+| GET/PATCH | `/api/scm/purchase-orders/:id` | admin, staff (cancel: admin) |
+| POST | `/api/scm/purchase-orders/:id/receive` | admin, staff |
+| GET | `/api/scm/stock` | admin, staff |
+| GET | `/api/scm/stock/:productId` | admin, staff |
+| GET/POST | `/api/scm/stock-movements` | admin, staff |
+| GET | `/api/scm/batches` | admin, staff |
 | GET | `/api/health` | Publik |
 
 Detail request/response, status HTTP, dan contoh `curl` ada di [docs/API_CONTRACT.md](docs/API_CONTRACT.md).
@@ -246,6 +285,17 @@ Detail request/response, status HTTP, dan contoh `curl` ada di [docs/API_CONTRAC
 - **Product** — `sku` (unik), `name`, `category`, `description`, `storageTemperature`, `shelfLifeDays`, `costPrice` (HPP), `sellPrice`, `unit`, `packSize`, `stockQty`, `minStockQty`, `isActive`, timestamps.
 - **FinancialTransaction** — `code` (unik), `type`, `category`, `amount`, `quantity`, `unitPrice`, `unitCost` (snapshot HPP), `description`, `occurredAt`, `source`, `status`, `externalRef`, `productId`, `createdById`, timestamps.
 
+Model tambahan **Tahap 2 (SCM)** — semuanya aditif, tidak mengubah kolom Tahap 1:
+
+- **Supplier** — `code` (unik, `SUP-XXXX`), nama, kontak, alamat/kota, `paymentTermDays`, `leadTimeDays`, `deliveryDays`, `minimumOrder`, catatan, `isActive`.
+- **SupplierProduct** — relasi supplier ↔ produk, `supplierSku`, `lastPrice`, `isPreferred`.
+- **PurchaseOrder** — `number` (unik), supplier, status (`draft|ordered|partially_received|received|cancelled`), tanggal PO/estimasi, subtotal, biaya kirim, total, pembuat, penerima.
+- **PurchaseOrderItem** — produk, jumlah, harga satuan, subtotal, `receivedQty`.
+- **GoodsReceipt** — `number` (unik), PO, penerima, tanggal terima, total nilai, catatan.
+- **GoodsReceiptItem** — item PO, jumlah diterima, nomor batch, tanggal produksi/expiry, subtotal.
+- **ProductBatch** — nomor batch, produk, supplier, tanggal produksi/expiry, `receivedQty`, `remainingQty`, `unitCost`, status.
+- **StockMovement** — `reference` (unik), produk, tipe (`in|out|adjustment`), alasan, `quantity` bertanda, `stockBefore`, `stockAfter`, batch, biaya, catatan, pelaku, waktu.
+
 Keputusan desain:
 
 - Semua nominal disimpan sebagai **integer Rupiah** (tanpa desimal) untuk menghindari error floating point.
@@ -253,6 +303,9 @@ Keputusan desain:
 - Produk tidak dihapus permanen; aksi hapus = **soft delete** (`isActive = false`).
 - `source` (`manual`, `pos`, `scm`, `payment`) dan `externalRef` sudah dicadangkan untuk integrasi tahap berikutnya.
 - SQLite tidak mendukung enum native; nilai enum divalidasi oleh Zod dan TypeScript.
+- **Penerimaan PO adalah satu transaksi database**: stok produk, batch, mutasi stok, dan `FinancialTransaction` (`expense`/`purchase`/`source: scm`) dibuat bersama. Jika salah satu gagal, semuanya dibatalkan.
+- `StockMovement.quantity` bertanda: `in` positif, `out` negatif, `adjustment` bisa +/-, sehingga saldo mudah diaudit.
+- Batch yang lewat tanggal expiry dihitung **efektif kedaluwarsa** saat dibaca, tanpa perlu job terjadwal.
 
 ---
 
@@ -264,7 +317,7 @@ npm run build       # production build
 npm start           # jalankan hasil build
 ```
 
-Checklist pengujian manual lengkap: [docs/STAGE-1-CHECKLIST.md](docs/STAGE-1-CHECKLIST.md).
+Checklist pengujian manual lengkap: [docs/STAGE-1-CHECKLIST.md](docs/STAGE-1-CHECKLIST.md) dan [docs/STAGE-2-CHECKLIST.md](docs/STAGE-2-CHECKLIST.md).
 
 ---
 
@@ -282,13 +335,13 @@ Tahap 1 memakai SQLite agar mudah dinilai secara lokal. Untuk deployment nyata:
 
 ## 10. Roadmap Tahap 2–4
 
-| Tahap | Modul | Titik sambung utama |
+| Tahap | Modul | Status |
 | --- | --- | --- |
-| 2 | SCM: supplier, PO, restock, cold-chain | `Product.stockQty/minStockQty`, `FinancialTransaction.source='scm'` |
-| 3 | CRM: loyalty, riwayat, segmentasi | `User.role='customer'`, relasi transaksi pelanggan baru |
-| 4 | Pembayaran: gateway, invoice, rekonsiliasi | `FinancialTransaction.source='payment'`, `externalRef`, status |
+| 2 | SCM: supplier, PO, goods receipt, stok, batch cold-chain, mutasi | ✅ Selesai (`stage-2/scm-inventory`) |
+| 3 | CRM: loyalty, riwayat, segmentasi | Placeholder |
+| 4 | Pembayaran: gateway, invoice, rekonsiliasi | Placeholder |
 
-Baca **[docs/HANDOFF-STAGE-2.md](docs/HANDOFF-STAGE-2.md)** sebelum mulai Tahap 2.
+Titik sambung Tahap 3: `User.role='customer'`, `FinancialTransaction.source='scm'`, `StockMovement.reason='sale'`, dan `ProductBatch` untuk FIFO. Baca **[docs/HANDOFF-STAGE-3.md](docs/HANDOFF-STAGE-3.md)** sebelum mulai Tahap 3.
 
 ---
 
